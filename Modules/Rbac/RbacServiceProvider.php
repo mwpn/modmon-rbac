@@ -109,6 +109,8 @@ class RbacServiceProvider extends ServiceProvider implements
                 group: 'Administration',
                 order: 50,
                 activePattern: 'rbac/roles*',
+                workspace: 'workspace.owner',
+                fallbackWorkspace: 'workspace.default',
             ),
         ];
     }

@@ -12,7 +12,7 @@ Role and permission management for ModMon hosts.
 |-------------|------------|
 | PHP         | `^8.3`     |
 | Laravel     | `^13.0`    |
-| Foundation  | `^1.0`     |
+| Foundation  | `^1.2`     |
 
 ## Provides
 
