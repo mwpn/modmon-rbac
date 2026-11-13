@@ -12,7 +12,7 @@ Role and permission management for ModMon hosts.
 |-------------|------------|
 | PHP         | `^8.3`     |
 | Laravel     | `^13.0`    |
-| Foundation  | `^1.2`     |
+| Foundation  | `^1.0`     |
 
 ## Provides
 
@@ -38,12 +38,43 @@ cp -r modmon-rbac/Modules/Rbac /path/to/host/Modules/Rbac
 # Verify compatibility
 php artisan module:doctor rbac
 
-# Install and enable
+# Install and enable (migrations only — no privilege seed)
 php artisan module:install rbac
 ```
 
 Copying the module never runs migrations or mutates runtime state.
-Migrations run only during `module:install`.
+Migrations run only during `module:install`. Installation does **not**
+grant roles or permissions to any user.
+
+### Operational bootstrap (owner access)
+
+RBAC admin routes and navigation require `rbac.roles.manage`. After a
+fresh install no user has that permission until an operator grants it
+explicitly:
+
+```bash
+php artisan module:install rbac
+
+# Create a user if the host has none yet (Identity)
+php artisan identity:user:create \
+  --name="Operator" \
+  --email=operator@example.com \
+  --password=...
+
+# Explicit owner bootstrap (exactly one of --email or --user)
+php artisan rbac:bootstrap-owner --email=operator@example.com
+# or: php artisan rbac:bootstrap-owner --user=1
+# optional role name: --role=rbac-manager (default)
+
+# Sign in, then open the admin surface
+# GET /rbac/roles
+```
+
+`rbac:bootstrap-owner` ensures role `rbac-manager` (or `--role`) exists,
+assigns **only** `rbac.roles.manage` to that role, and assigns the role
+to the named user. It is idempotent, never auto-selects a user, never
+revokes existing assignments, and is registered only while RBAC is
+enabled.
 
 ## Configuration
 
@@ -95,6 +126,12 @@ All routes are protected by `auth` + `can:rbac.roles.manage` (the
 Laravel Gate path from Phase 2 — the single authorization mechanism).
 Controllers use only the public contracts; no RBAC/Identity table is
 queried directly.
+
+## Console commands
+
+| Command | Purpose |
+|---------|---------|
+| `rbac:bootstrap-owner` | Explicit owner bootstrap: ensure role (default `rbac-manager`) has `rbac.roles.manage` and assign it to `--email` or `--user`. Idempotent. Not run by `module:install`. |
 
 ## Events Published
 
@@ -205,10 +242,12 @@ Gate-protected as well.
 
 ## Testing
 
-Phase 1–5 tests live in the host under `tests/Feature/Rbac/` (85
-methods). Run with:
+Module tests live under `Modules/Rbac/Tests/` (and any host-side
+`tests/Feature/Rbac/` suite when present). Run with:
 
 ```bash
+php artisan test Modules/Rbac/Tests
+# or, when host Rbac feature tests exist:
 php artisan test --filter="Rbac"
 ```
 
@@ -218,30 +257,31 @@ php artisan test --filter="Rbac"
 |------|--------|
 | Manifest validation | Covered by `module:doctor` (Foundation) |
 | Discovery | Covered by Foundation `module:list` |
-| Installation | Covered — `RbacLifecycleTest` |
-| Capability registration | Covered — `RbacContractResolutionTest` |
-| Routes | Covered — `RbacAdminLifecycleTest` (registered while enabled, absent before install, restored on re-enable) |
-| Migrations | Covered — `RbacLifecycleTest` |
-| Contributions | Covered — `RbacPermissionContributionTest`, `RbacAdminLifecycleTest` |
-| Gate integration | Covered — `RbacGateIntegrationTest` |
-| Disable/Enable | Covered — `RbacLifecycleTest`, `RbacGateIntegrationTest`, `RbacAdminLifecycleTest` |
-| Data preservation | Covered — `RbacLifecycleTest`, `RbacGateIntegrationTest`, `RbacAdminLifecycleTest` |
-| Architecture boundary | Covered — `RbacBoundaryTest`, `RbacAdminBoundaryTest`, `RbacComplianceTest` |
-| Role CRUD | Covered — `RbacRoleCrudTest`, `RbacAdminHttpTest` |
-| Permission assignment | Covered — `RbacPermissionAssignmentTest`, `RbacAdminHttpTest` |
-| User-role assignment | Covered — `RbacUserRoleAssignmentTest`, `RbacAdminHttpTest` |
-| Authorization checks | Covered — `RbacAuthorizationTest`, `RbacAdminHttpTest` (403 without `rbac.roles.manage`, guest redirect) |
-| Portability / doctor / missing Identity | Covered — `RbacComplianceTest` (discovered state, doctor fail/pass, explicit install, disable/re-enable, no host surgery) |
+| Installation | Covered — host `RbacLifecycleTest` / module lifecycle |
+| Capability registration | Covered — host contract resolution tests |
+| Routes | Covered — host admin lifecycle tests |
+| Migrations | Covered — host lifecycle tests |
+| Contributions | Covered — permission + admin lifecycle |
+| Gate integration | Covered — host Gate integration tests |
+| Owner bootstrap CLI | Covered — `RbacBootstrapOwnerCommandTest` |
+| Disable/Enable | Covered — lifecycle + bootstrap fresh-boot absence |
+| Data preservation | Covered — host lifecycle tests |
+| Architecture boundary | Covered — host boundary/compliance tests |
+| Role CRUD | Covered — host role CRUD / admin HTTP |
+| Permission assignment | Covered — host assignment / admin HTTP |
+| User-role assignment | Covered — host assignment / admin HTTP |
+| Authorization checks | Covered — host authorization / admin HTTP |
+| Portability / doctor / missing Identity | Covered — host compliance tests |
 
 ## Certification
 
-See `docs/reports/rbac-compliance-v1.md` (authoring host). Checklist
-section 14: manifest, lifecycle, boundaries, documentation, and host
-tests are **PASS**. GitHub copy-install proof is the extract to
-`mwpn/modmon-rbac`.
+See `docs/reports/rbac-compliance-v1.md` (module repository). Checklist
+section 14: manifest, lifecycle, boundaries, documentation, owner
+bootstrap, and host/module tests are **PASS** for v1.0.1.
 
 ## Version History
 
 | Version | Foundation | Description       |
 |---------|------------|-------------------|
+| 1.0.1   | ^1.0       | Explicit `rbac:bootstrap-owner` CLI to break the fresh-install chicken-and-egg (no install-time privilege seed; idempotent; UserQueryContract-only user resolve). |
 | 1.0.0   | ^1.0       | Phase 1: core domain + persistence + public integration. Phase 2: permission contribution (`rbac.roles.manage`) + Laravel Gate integration with disable/re-enable runtime semantics. Phase 3: module-owned admin surface (routes/controllers/Blade views for role CRUD, permission and user-role assignment) + navigation contribution, all protected by `rbac.roles.manage`. Phase 5: lifecycle/compliance hardening (doctor before/after Identity, explicit install, owned migrations, disable/re-enable proof). |

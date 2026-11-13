@@ -10,11 +10,13 @@ use App\Foundation\SDK\Contributions\ContributesRoutes;
 use App\Foundation\SDK\DTOs\NavigationItem;
 use App\Foundation\SDK\DTOs\PermissionDefinition;
 use Illuminate\Contracts\Auth\Access\Gate;
+use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Support\ServiceProvider;
 use Modules\Identity\Domain\Contracts\UserQueryContract;
 use Modules\Rbac\Application\Services\AuthorizationService;
 use Modules\Rbac\Application\Services\RbacService;
 use Modules\Rbac\Application\Services\RuntimeAuthorization;
+use Modules\Rbac\Console\Commands\BootstrapOwnerCommand;
 use Modules\Rbac\Domain\Contracts\AuthorizationContract;
 use Modules\Rbac\Domain\Contracts\RoleManagementContract;
 
@@ -30,7 +32,8 @@ use Modules\Rbac\Domain\Contracts\RoleManagementContract;
  * Also contributes the module's own permissions (`rbac.roles.manage`)
  * through the Foundation `ContributesPermissions` mechanism and wires
  * the Laravel Gate integration (RuntimeAuthorization) while the module
- * is enabled.
+ * is enabled. Registers `rbac:bootstrap-owner` for explicit owner
+ * bootstrap (console only; never during module:install).
  */
 class RbacServiceProvider extends ServiceProvider implements
     ContributesRoutes,
@@ -68,6 +71,23 @@ class RbacServiceProvider extends ServiceProvider implements
             ));
 
             $this->app->make(RuntimeAuthorization::class)->register();
+        }
+
+        if ($this->app->runningInConsole()) {
+            // Same dual registration pattern as Identity:
+            // - $this->commands() for cold Artisan starts
+            // - afterResolving for mid-process install when the kernel
+            //   already exists (avoids missing migrate / deferred maps)
+            // Tests that simulate a fresh boot after disable must call
+            // Application::forgetBootstrappers() before refreshApplication().
+            $this->commands([
+                BootstrapOwnerCommand::class,
+            ]);
+
+            $this->app->afterResolving(ConsoleKernel::class, function (): void {
+                $this->app->make(ConsoleKernel::class)
+                    ->registerCommand($this->app->make(BootstrapOwnerCommand::class));
+            });
         }
     }
 
@@ -109,8 +129,6 @@ class RbacServiceProvider extends ServiceProvider implements
                 group: 'Administration',
                 order: 50,
                 activePattern: 'rbac/roles*',
-                workspace: 'workspace.owner',
-                fallbackWorkspace: 'workspace.default',
             ),
         ];
     }
