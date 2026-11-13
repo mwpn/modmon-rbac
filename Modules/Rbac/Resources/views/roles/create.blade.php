@@ -1,11 +1,11 @@
 <x-foundation::app-shell>
     <x-slot:header>
-        <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Roles &amp; Permissions</h2>
+        <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Peran &amp; Izin</h2>
     </x-slot:header>
 
     @include('foundation::components.page-header', [
-        'title' => 'Create Role',
-        'subtitle' => 'Add a new role to the RBAC system.',
+        'title' => 'Buat Peran',
+        'subtitle' => 'Tambah peran baru ke sistem RBAC.',
     ])
 
     @if ($errors->any())
@@ -23,14 +23,14 @@
             @csrf
 
             <div>
-                <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Role name</label>
+                <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama peran</label>
                 <input id="name" name="name" type="text" value="{{ old('name') }}" required
                        class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white" />
             </div>
 
             <div class="flex gap-3">
-                <x-foundation::button tag="button" type="submit">Create Role</x-foundation::button>
-                <x-foundation::button tag="a" href="{{ route('rbac.roles.index') }}" type="secondary">Cancel</x-foundation::button>
+                <x-foundation::button tag="button" type="submit">Buat Peran</x-foundation::button>
+                <x-foundation::button tag="a" href="{{ route('rbac.roles.index') }}" type="secondary">Batal</x-foundation::button>
             </div>
         </form>
     </x-foundation::card>

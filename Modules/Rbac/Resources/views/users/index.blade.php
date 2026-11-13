@@ -1,11 +1,11 @@
 <x-foundation::app-shell>
     <x-slot:header>
-        <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Staff Users</h2>
+        <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Pengguna Staf</h2>
     </x-slot:header>
 
     @include('foundation::components.page-header', [
-        'title' => 'Staff Users',
-        'subtitle' => 'Create and manage staff accounts and their roles.',
+        'title' => 'Pengguna Staf',
+        'subtitle' => 'Buat dan kelola akun staf beserta perannya.',
     ])
 
     @if (session('status'))
@@ -24,11 +24,11 @@
 
     @can('rbac.users.manage')
         <div class="mb-6 flex justify-end">
-            <x-foundation::button tag="a" href="{{ route('rbac.users.create') }}">Create Staff User</x-foundation::button>
+            <x-foundation::button tag="a" href="{{ route('rbac.users.create') }}">Tambah Pengguna Staf</x-foundation::button>
         </div>
     @endcan
 
-    <x-foundation::card title="All Staff Users">
+    <x-foundation::card title="Semua Pengguna Staf">
         @forelse ($users as $user)
             <div class="flex items-center justify-between border-b border-gray-100 py-3 dark:border-gray-700 last:border-0">
                 <div>
@@ -36,7 +36,7 @@
                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ $user->email }}</p>
                     <p class="mt-1 text-xs text-gray-400">
                         @if (empty($roleNamesByUserId[$user->id]))
-                            No roles assigned
+                            Belum ada peran
                         @else
                             {{ implode(', ', $roleNamesByUserId[$user->id]) }}
                         @endif
@@ -44,13 +44,13 @@
                 </div>
                 <a href="{{ route('rbac.users.edit', $user->id) }}"
                    class="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                    Manage
+                    Kelola
                 </a>
             </div>
         @empty
             <x-foundation::empty-state
-                title="No staff users yet"
-                description="Create the first staff account to get started."
+                title="Belum ada pengguna staf"
+                description="Buat akun staf pertama untuk mulai."
             />
         @endforelse
     </x-foundation::card>
