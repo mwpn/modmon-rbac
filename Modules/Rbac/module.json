@@ -2,7 +2,7 @@
     "schema": 1,
     "name": "Rbac",
     "code": "rbac",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "type": "platform",
     "provider": "Modules\\Rbac\\RbacServiceProvider",
     "compatibility": {

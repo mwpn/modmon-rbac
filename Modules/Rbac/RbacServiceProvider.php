@@ -114,6 +114,20 @@ class RbacServiceProvider extends ServiceProvider implements
                 group: 'RBAC',
                 description: 'Can create, update and delete RBAC roles and assignments.',
             ),
+            new PermissionDefinition(
+                id: 'rbac.users.view',
+                moduleCode: 'rbac',
+                label: 'View Staff Users',
+                group: 'RBAC',
+                description: 'Can view the staff user list.',
+            ),
+            new PermissionDefinition(
+                id: 'rbac.users.manage',
+                moduleCode: 'rbac',
+                label: 'Manage Staff Users',
+                group: 'RBAC',
+                description: 'Can create, update, and delete staff users and assign their roles — separate from rbac.roles.manage so a host can grant one without the other.',
+            ),
         ];
     }
 
@@ -129,6 +143,16 @@ class RbacServiceProvider extends ServiceProvider implements
                 group: 'Administration',
                 order: 50,
                 activePattern: 'rbac/roles*',
+            ),
+            new NavigationItem(
+                id: 'rbac.users',
+                moduleCode: 'rbac',
+                label: 'Staff Users',
+                route: '/rbac/users',
+                permission: 'rbac.users.view',
+                group: 'Administration',
+                order: 49,
+                activePattern: 'rbac/users*',
             ),
         ];
     }

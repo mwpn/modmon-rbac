@@ -23,7 +23,10 @@ Role and permission management for ModMon hosts.
 ## Requires
 
 - `identity.user` — the Identity user domain, consumed through the
-  public `UserQueryContract` only.
+  public `UserQueryContract` (read lookups) and, since the staff-user
+  management screen (ADR-0042), `UserManagementContract` (create/
+  update/delete) as well — both under the same existing capability, no
+  new capability declared.
 
 ## Optional Integrations
 
@@ -96,6 +99,8 @@ Foundation `ContributesPermissions` mechanism:
 | Permission          | Label        | Notes                                   |
 |---------------------|--------------|-----------------------------------------|
 | `rbac.roles.manage` | Manage Roles | Can manage RBAC roles and assignments.  |
+| `rbac.users.view`   | View Staff Users | Can view the staff user list (ADR-0042). |
+| `rbac.users.manage` | Manage Staff Users | Can create/update/delete staff users and assign their roles — deliberately separate from `rbac.roles.manage` so a host can grant one without the other (ADR-0042). |
 
 The module is also the *enforcer*: it consumes the Foundation
 `PermissionRegistryContract` as the source of truth for which
@@ -121,11 +126,22 @@ and loaded only while the module is enabled:
 | DELETE | `/rbac/roles/{role}/permissions` | `rbac.roles.permissions.remove` | Remove permission  |
 | POST   | `/rbac/roles/{role}/users`   | `rbac.roles.users.assign`     | Assign role to user   |
 | DELETE | `/rbac/roles/{role}/users`   | `rbac.roles.users.remove`     | Remove role from user |
+| GET    | `/rbac/users`                | `rbac.users.index`            | List staff users + their role names |
+| GET    | `/rbac/users/create`         | `rbac.users.create`           | Create-staff-user form |
+| POST   | `/rbac/users`                | `rbac.users.store`            | Create a staff user (Identity `UserManagementContract`) |
+| GET    | `/rbac/users/{user}`         | `rbac.users.edit`             | Edit staff user + assign/remove roles |
+| PUT    | `/rbac/users/{user}`         | `rbac.users.update`           | Update name/email, optional password change |
+| DELETE | `/rbac/users/{user}`         | `rbac.users.destroy`          | Delete a staff user (not your own account) |
+| POST   | `/rbac/users/{user}/roles`   | `rbac.users.roles.assign`     | Assign a role to the staff user |
+| DELETE | `/rbac/users/{user}/roles`   | `rbac.users.roles.remove`     | Remove a role from the staff user |
 
-All routes are protected by `auth` + `can:rbac.roles.manage` (the
-Laravel Gate path from Phase 2 — the single authorization mechanism).
-Controllers use only the public contracts; no RBAC/Identity table is
-queried directly.
+The `/rbac/roles/*` routes are protected by `auth` + `can:rbac.roles.manage`
+(the Laravel Gate path from Phase 2 — the single authorization
+mechanism). The new `/rbac/users/*` routes (ADR-0042) use their own
+`can:rbac.users.view`/`can:rbac.users.manage` instead — a host can grant
+"manage staff accounts" without also granting "redefine every role's
+permissions". Controllers use only the public contracts; no RBAC/
+Identity table is queried directly.
 
 ## Console commands
 
@@ -223,12 +239,12 @@ preserves all rows; no data is deleted.
 
 ## Navigation Contributions
 
-Phase 3 — the module contributes one navigation item via
-`ContributesNavigation`:
+The module contributes two navigation items via `ContributesNavigation`:
 
 | Item      | Label               | Route        | Permission            | Group        |
 |-----------|---------------------|--------------|-----------------------|--------------|
 | `rbac.roles` | Roles & Permissions | `/rbac/roles` | `rbac.roles.manage`   | Administration |
+| `rbac.users` | Staff Users | `/rbac/users` | `rbac.users.view` | Administration |
 
 The item is registered while the module is enabled and removed by the
 Foundation lifecycle on disable (re-enable restores it). The Experience
@@ -272,6 +288,9 @@ php artisan test --filter="Rbac"
 | User-role assignment | Covered — host assignment / admin HTTP |
 | Authorization checks | Covered — host authorization / admin HTTP |
 | Portability / doctor / missing Identity | Covered — host compliance tests |
+| Staff user CRUD (create/update/delete, duplicate-email + short-password validation, self-delete guard) | Covered (`StaffUserManagementTest`) |
+| Staff user ↔ role assignment from the staff-user edit page | Covered (`StaffUserManagementTest`) |
+| `rbac.users.view`/`.manage` HTTP permission guards | Covered (`StaffUserManagementTest`) |
 
 ## Certification
 
@@ -283,5 +302,6 @@ bootstrap, and host/module tests are **PASS** for v1.0.1.
 
 | Version | Foundation | Description       |
 |---------|------------|-------------------|
+| 1.1.0   | ^1.0       | New staff-user management screen (`/rbac/users`): create/edit/delete Identity staff accounts and assign/remove their roles from one page, replacing the `identity:user:create` CLI for day-to-day use. Lives in RBAC (not Identity, which contributes no permissions/UI by design) — writes go through Identity's new `UserManagementContract`. New `rbac.users.view`/`rbac.users.manage` permissions, separate from `rbac.roles.manage` (ADR-0042). |
 | 1.0.1   | ^1.0       | Explicit `rbac:bootstrap-owner` CLI to break the fresh-install chicken-and-egg (no install-time privilege seed; idempotent; UserQueryContract-only user resolve). |
 | 1.0.0   | ^1.0       | Phase 1: core domain + persistence + public integration. Phase 2: permission contribution (`rbac.roles.manage`) + Laravel Gate integration with disable/re-enable runtime semantics. Phase 3: module-owned admin surface (routes/controllers/Blade views for role CRUD, permission and user-role assignment) + navigation contribution, all protected by `rbac.roles.manage`. Phase 5: lifecycle/compliance hardening (doctor before/after Identity, explicit install, owned migrations, disable/re-enable proof). |

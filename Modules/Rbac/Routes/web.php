@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Modules\Rbac\Http\Controllers\RoleController;
+use Modules\Rbac\Http\Controllers\StaffUserController;
 use Modules\Rbac\Http\Controllers\UserRoleController;
 
 /*
@@ -34,4 +35,36 @@ Route::prefix('rbac')->middleware(['auth', 'can:rbac.roles.manage'])->group(func
         ->name('rbac.roles.users.assign');
     Route::delete('/roles/{role}/users', [UserRoleController::class, 'remove'])
         ->name('rbac.roles.users.remove');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Staff user management (ADR-0042)
+|--------------------------------------------------------------------------
+|
+| `rbac.users.view`/`.manage` are separate permissions from
+| `rbac.roles.manage` so a host can grant "see/edit staff accounts"
+| without also granting "redefine every role's permissions".
+*/
+Route::prefix('rbac/users')->middleware(['auth', 'can:rbac.users.view'])->group(function () {
+    Route::get('/', [StaffUserController::class, 'index'])->name('rbac.users.index');
+    Route::get('/create', [StaffUserController::class, 'create'])
+        ->middleware('can:rbac.users.manage')
+        ->name('rbac.users.create');
+    Route::post('/', [StaffUserController::class, 'store'])
+        ->middleware('can:rbac.users.manage')
+        ->name('rbac.users.store');
+    Route::get('/{user}', [StaffUserController::class, 'edit'])->name('rbac.users.edit');
+    Route::put('/{user}', [StaffUserController::class, 'update'])
+        ->middleware('can:rbac.users.manage')
+        ->name('rbac.users.update');
+    Route::delete('/{user}', [StaffUserController::class, 'destroy'])
+        ->middleware('can:rbac.users.manage')
+        ->name('rbac.users.destroy');
+    Route::post('/{user}/roles', [StaffUserController::class, 'assignRole'])
+        ->middleware('can:rbac.users.manage')
+        ->name('rbac.users.roles.assign');
+    Route::delete('/{user}/roles', [StaffUserController::class, 'removeRole'])
+        ->middleware('can:rbac.users.manage')
+        ->name('rbac.users.roles.remove');
 });
